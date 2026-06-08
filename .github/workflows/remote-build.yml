@@ -1,0 +1,84 @@
+name: Remote Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        description: 'GitHub Repository URL (e.g., https://github.com/owner/repo)'
+        required: true
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'main'
+      build_id:
+        description: 'Supabase Build ID'
+        required: true
+      version_name:
+        description: 'Version Name'
+        required: false
+        default: '1.0.0'
+      version_code:
+        description: 'Version Code'
+        required: false
+        default: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source (This Repo)
+        uses: actions/checkout@v4
+
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.inputs.repository_url }}
+          ref: ${{ github.event.inputs.branch }}
+          token: ${{ secrets.REMOTE_REPO_TOKEN }}
+          path: remote_repo
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: remote_repo
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: remote_repo
+        run: |
+          flutter build apk --release \
+            --build-name=${{ github.event.inputs.version_name }} \
+            --build-number=${{ github.event.inputs.version_code }}
+
+      - name: Build AAB
+        working-directory: remote_repo
+        run: |
+          flutter build appbundle --release \
+            --build-name=${{ github.event.inputs.version_name }} \
+            --build-number=${{ github.event.inputs.version_code }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-assets-${{ github.event.inputs.build_id }}
+          path: |
+            remote_repo/build/app/outputs/flutter-apk/app-release.apk
+            remote_repo/build/app/outputs/bundle/release/app-release.aab
+
+      - name: Notify Supabase
+        run: |
+          # This would call the notify-build-complete edge function
+          # We'll need to pass the build_id and status
+          echo "Build complete for ID ${{ github.event.inputs.build_id }}"
