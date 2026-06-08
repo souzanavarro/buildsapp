@@ -102,7 +102,24 @@ jobs:
           chmod +x scripts/generate-mobile-assets.sh
           ./scripts/generate-mobile-assets.sh
 
+      - name: Detect Android artifacts
+        id: detect_android_artifacts
+        run: |
+          APK_EXISTS=false
+          AAB_EXISTS=false
+
+          if [ -d android/app/build/outputs/apk/release ] && ls android/app/build/outputs/apk/release/*.apk >/dev/null 2>&1; then
+            APK_EXISTS=true
+          fi
+          if [ -d android/app/build/outputs/bundle/release ] && ls android/app/build/outputs/bundle/release/*.aab >/dev/null 2>&1; then
+            AAB_EXISTS=true
+          fi
+
+          echo "apk_exists=$APK_EXISTS" >> $GITHUB_OUTPUT
+          echo "aab_exists=$AAB_EXISTS" >> $GITHUB_OUTPUT
+
       - name: Sign APK
+        if: steps.detect_android_artifacts.outputs.apk_exists == 'true'
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
@@ -113,6 +130,7 @@ jobs:
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Sign AAB
+        if: steps.detect_android_artifacts.outputs.aab_exists == 'true'
         uses: r0adkll/sign-android-release@v1
         id: sign_aab
         with:
