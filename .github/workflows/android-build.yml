@@ -128,12 +128,12 @@ jobs:
           flutter pub get
           
           echo "--- Building APK ---"
-          # Build APK and capture errors
+          # Try building APK without -v first to see if it's a timeout/output size issue, but keep capturing logs
           flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (tail -n 200 build_apk_log.txt && exit 1)
+            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (echo "APK Build Failed. Tail of log:" && tail -n 300 build_apk_log.txt && exit 1)
             
           echo "--- Building App Bundle ---"
           # Build App Bundle and capture errors
@@ -141,7 +141,7 @@ jobs:
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (tail -n 200 build_aab_log.txt && exit 1)
+            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (echo "AAB Build Failed. Tail of log:" && tail -n 300 build_aab_log.txt && exit 1)
 
       - name: Verify Build Artifacts
         run: |
