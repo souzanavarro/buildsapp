@@ -72,10 +72,12 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-            flutter/.dart_tool
           key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pub-
+
+      - name: Accept Android Licenses
+        run: yes | flutter doctor --android-licenses || true
 
       - name: Install Dependencies
         run: |
@@ -93,7 +95,10 @@ jobs:
           java -version || true
           
           # Encontrar o path do Flutter de forma segura
-          FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
+          FLUTTER_SDK_PATH=$FLUTTER_ROOT
+          if [ -z "$FLUTTER_SDK_PATH" ]; then
+            FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
+          fi
           echo "Flutter SDK Path: $FLUTTER_SDK_PATH"
           
           # Garantir que local.properties existe em flutter/android
@@ -101,6 +106,8 @@ jobs:
             cd flutter/android
             echo "sdk.dir=$ANDROID_HOME" > local.properties
             echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
+            echo "flutter.versionName=${{ env.VERSION_NAME }}" >> local.properties
+            echo "flutter.versionCode=${{ env.VERSION_CODE }}" >> local.properties
             echo "--- local.properties content ---"
             cat local.properties
             
@@ -120,8 +127,6 @@ jobs:
       - name: Build Flutter App
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
-          ORG_GRADLE_PROJECT_VERSION_CODE: ${{ env.VERSION_CODE }}
-          ORG_GRADLE_PROJECT_VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           cd flutter
           
@@ -129,13 +134,13 @@ jobs:
           flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            --no-pub
+            -v
             
           # Build App Bundle
           flutter build appbundle --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            --no-pub
+            -v
 
       - name: Verify Build Artifacts
         run: |
