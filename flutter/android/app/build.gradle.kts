@@ -87,4 +87,7 @@ dependencies {
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     kapt("androidx.room:room-compiler:$room_version")
+    
+    // Add specific firebase dependencies if needed, or ensure versions match
+    // implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
 }
