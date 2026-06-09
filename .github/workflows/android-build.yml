@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version: '17'
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -67,23 +67,70 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
-      - name: Build Flutter App
+      - name: Debug Info & Gradle Warmup
         run: |
-          cd flutter
-          echo "Checking Gradle configuration..."
-          cat android/gradle/wrapper/gradle-wrapper.properties
+          echo "--- Versions Report ---"
+          echo "Flutter: $(flutter --version | head -n 1)"
+          echo "Dart: $(dart --version)"
+          echo "Java: $(java -version 2>&1 | head -n 1)"
           
-          # Se o gradlew não existir, o Flutter tentará criá-lo, mas vamos garantir permissões
-          if [ -f "android/gradlew" ]; then
-            chmod +x android/gradlew
+          cd flutter/android
+          
+          echo "--- Validating Gradle Wrapper ---"
+          if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            echo "❌ ERROR: gradle-wrapper.properties not found!"
+            exit 1
+          fi
+          DIST_URL=$(grep 'distributionUrl' gradle/wrapper/gradle-wrapper.properties)
+          echo "Gradle Distribution: $DIST_URL"
+          if [[ ! "$DIST_URL" =~ "https://services.gradle.org/distributions/gradle-" ]]; then
+            echo "⚠️ WARNING: Custom or invalid Gradle distribution URL detected."
           fi
           
-          flutter pub get
-          flutter build apk --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
-          flutter build appbundle --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
+          echo "--- AGP & Kotlin Versions ---"
+          # Tentativa de obter versões do AGP e Kotlin do settings.gradle.kts
+          echo "AGP Version: $(grep 'com.android.application' settings.gradle.kts | grep 'version' | sed -E 's/.*version \"(.*)\".*/\1/' | head -1 || echo 'Not found')"
+          echo "Kotlin Version: $(grep 'org.jetbrains.kotlin' settings.gradle.kts | grep 'version' | sed -E 's/.*version \"(.*)\".*/\1/' | head -1 || echo 'Not found')"
+          
+          echo "--- Pre-downloading Gradle & Dependencies ---"
+          chmod +x gradlew
+          ./gradlew help --no-daemon --stacktrace --max-workers=2
+
+      - name: Install Dependencies
+        run: |
+          cd flutter
+          # Retry mechanism for pub get
+          for i in {1..3}; do
+            flutter pub get && break || sleep 10
+          done
+
+      - name: Build Flutter App
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+        run: |
+          cd flutter
+          
+          # Build APK
+          flutter build apk --release --verbose \
+            --build-number=${{ env.VERSION_CODE }} \
+            --build-name=${{ env.VERSION_NAME }} \
+            --no-pub
+            
+          # Build App Bundle
+          flutter build appbundle --release --verbose \
+            --build-number=${{ env.VERSION_CODE }} \
+            --build-name=${{ env.VERSION_NAME }} \
+            --no-pub
 
       - name: Verify Build Artifacts
         run: |
