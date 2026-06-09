@@ -9,6 +9,9 @@ class TelemetryService {
   StreamSubscription? _accelerometerSub;
   double _brakingScore = 100.0;
   
+  static final StreamController<Map<String, double>> _locationController = StreamController<Map<String, double>>.broadcast();
+  static Stream<Map<String, double>> get locationStream => _locationController.stream;
+
   void startMonitoring() {
     _accelerometerSub = userAccelerometerEvents.listen((UserAccelerometerEvent event) {
       // Detecção de frenagem brusca (exemplo: desaceleração > 10m/s²)
@@ -28,8 +31,10 @@ class TelemetryService {
     // Enviar para backend via telemetry_service existente
   }
 
-  static void updateLocation() {
-    // Implementação pendente do envio de telemetria de localização
+  static void updateLocation({double? lat, double? lng}) {
+    if (lat != null && lng != null) {
+      _locationController.add({'lat': lat, 'lng': lng});
+    }
   }
 
 

@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../data/services/telemetry_service.dart';
 import '../../data/services/sync_service.dart';
 import '../../data/services/notification_service.dart';
+// BackgroundLocationService removed to avoid duplicate imports if needed or fix path
 import '../../data/services/background_location_service.dart';
 import '../map/map_screen.dart';
 import '../onboarding/permission_check_screen.dart';
@@ -29,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final List<double> _distanceToNext = []; // Track distance for TTS
   bool _isNearLastStop = false;
+  Timer? _telemetryTimer;
 
   @override
   void initState() {
@@ -59,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _startDistanceMonitoring() {
     // Escuta a localização em tempo real para disparar o TTS ao chegar perto
-    BackgroundLocationService.locationStream.listen((location) {
+    TelemetryService.locationStream.listen((location) {
       // Logic for proximity alerts
       // In a real app, we'd compare location with delivery coords
       // VoiceService.speak("Você está chegando ao destino");

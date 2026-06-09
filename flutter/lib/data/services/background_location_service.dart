@@ -31,7 +31,7 @@ class BackgroundLocationService {
   }
 
   static void callback(location) {
-    TelemetryService.updateLocation();
+    TelemetryService.updateLocation(lat: location.latitude, lng: location.longitude);
   }
 
   static void initCallback(params) => print('Location Service Initialized');
