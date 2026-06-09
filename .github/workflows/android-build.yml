@@ -92,9 +92,12 @@ jobs:
           echo "Flutter: $(flutter --version | head -n 1)"
           echo "Java: $(java -version 2>&1 | head -n 1)"
           
-          # Use default Flutter root from environment if available or assume standard location
-          # 'flutter sdk-path' is not a valid command in older/some Flutter versions
-          FLUTTER_ROOT_PATH=$(flutter doctor -v | grep "Flutter SDK at" | awk '{print $4}' || echo "/opt/hostedtoolcache/flutter/common")
+          # Derive Flutter root from the installed flutter binary
+          FLUTTER_ROOT_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
+          if [ -z "$FLUTTER_ROOT_PATH" ]; then
+            echo "❌ ERROR: Flutter SDK path could not be determined."
+            exit 1
+          fi
           echo "Flutter SDK Path: $FLUTTER_ROOT_PATH"
           
           echo "--- Project Structure ---"
@@ -129,12 +132,13 @@ jobs:
           
           # Re-verify local.properties
           if [ ! -f "android/local.properties" ]; then
-            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-            # Try to get path again safely
-            SAFE_FLUTTER_PATH=$(flutter doctor -v | grep "Flutter SDK at" | awk '{print $4}' || echo "")
-            if [ -n "$SAFE_FLUTTER_PATH" ]; then
-              echo "flutter.sdk=$SAFE_FLUTTER_PATH" >> android/local.properties
+            FLUTTER_ROOT_PATH="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
+            if [ -z "$FLUTTER_ROOT_PATH" ]; then
+              echo "❌ ERROR: Flutter SDK path could not be determined for local.properties."
+              exit 1
             fi
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+            echo "flutter.sdk=$FLUTTER_ROOT_PATH" >> android/local.properties
           fi
 
 
