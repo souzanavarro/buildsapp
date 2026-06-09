@@ -5,13 +5,13 @@ on:
     branches: [ main, master ]
     paths:
       - 'flutter/android/**'
-      - 'pubspec.yaml'
+      - 'flutter/pubspec.yaml'
       - '.github/workflows/**'
   pull_request:
     branches: [ main, master ]
     paths:
       - 'flutter/android/**'
-      - 'pubspec.yaml'
+      - 'flutter/pubspec.yaml'
 
 
 jobs:
@@ -36,15 +36,17 @@ jobs:
           cache: true
 
       - name: Clean and Install dependencies
+        working-directory: flutter
         run: |
           flutter clean
           flutter pub get
 
-
       - name: Run Tests
+        working-directory: flutter
         run: flutter test
 
       - name: Build App Bundle (AAB)
+        working-directory: flutter
         run: |
           # Use GITHUB_RUN_NUMBER for auto-incrementing versionCode
           flutter build appbundle --release \
@@ -65,7 +67,7 @@ jobs:
         with:
           serviceAccountJsonRaw: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: com.example.rota_certa
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          releaseFiles: flutter/build/app/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
 
