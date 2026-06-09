@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<actions>
+    <action intentName="custom.actions.intent.COMPLETE_DELIVERY">
+        <fulfillment urlTemplate="rotacerta://complete_delivery"/>
+    </action>
+    <action intentName="custom.actions.intent.NEXT_STOP">
+        <fulfillment urlTemplate="rotacerta://next_stop"/>
+    </action>
+</actions>
