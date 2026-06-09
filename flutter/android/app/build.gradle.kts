@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.kapt")
-    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.24"
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -33,12 +32,9 @@ android {
         minSdk = 23 // Required for Car App Library
         targetSdk = 34
         
-        // Auto-increment versioning logic (can be overridden by CI)
-        val buildNumber = project.findProperty("VERSION_CODE")?.toString()?.toInt() ?: flutter.versionCode
-        val versionStr = project.findProperty("VERSION_NAME")?.toString() ?: flutter.versionName
-        
-        versionCode = buildNumber
-        versionName = versionStr
+        versionCode = project.findProperty("VERSION_CODE")?.toString()?.toInt() ?: 1
+        versionName = project.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
+
 
     }
 

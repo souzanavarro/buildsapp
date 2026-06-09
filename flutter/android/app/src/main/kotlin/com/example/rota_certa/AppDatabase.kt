@@ -29,6 +29,8 @@ data class ChatMessageEntity(
     val synced: Boolean = false
 )
 
+    @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp, proof_image_path = :imagePath, proof_ocr_text = :ocrText WHERE id = :id")
+    suspend fun updateStatusWithProof(id: String, status: String, pending: Boolean, imagePath: String?, ocrText: String?, timestamp: Long = System.currentTimeMillis())
 
 
 @Entity(tableName = "audit_logs")
@@ -59,9 +61,6 @@ interface DeliveryDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(deliveries: List<DeliveryEntity>)
-
-    @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp, proof_image_path = :imagePath, proof_ocr_text = :ocrText WHERE id = :id")
-    suspend fun updateStatusWithProof(id: String, status: String, pending: Boolean, imagePath: String?, ocrText: String?, timestamp: Long = System.currentTimeMillis())
 
     @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, pending: Boolean, timestamp: Long = System.currentTimeMillis())
