@@ -71,8 +71,8 @@ jobs:
         run: npm ci
 
       - name: Build Flutter App
+        working-directory: flutter
         run: |
-          cd flutter
           flutter pub get
           flutter build apk --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
           flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
@@ -80,15 +80,15 @@ jobs:
       - name: Debug Output Paths
         run: |
           echo "Checking APK output directory:"
-          ls -R flutter/build/app/outputs/flutter-apk/
+          ls -R flutter/build/app/outputs/flutter-apk/ || true
           echo "Checking AAB output directory:"
-          ls -R flutter/build/app/outputs/bundle/release/
+          ls -R flutter/build/app/outputs/bundle/release/ || true
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
-          releaseDirectory: flutter/build/app/outputs/flutter-apk
+          releaseDirectory: ${{ github.workspace }}/flutter/build/app/outputs/flutter-apk
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -98,7 +98,7 @@ jobs:
         uses: r0adkll/sign-android-release@v1
         id: sign_aab
         with:
-          releaseDirectory: flutter/build/app/outputs/bundle/release
+          releaseDirectory: ${{ github.workspace }}/flutter/build/app/outputs/bundle/release
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}

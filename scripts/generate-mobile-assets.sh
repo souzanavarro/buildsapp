@@ -10,13 +10,13 @@ if npm run -s | grep -q "generate-mobile-assets"; then
 fi
 
 # If Android build outputs do not exist, generate fallback artifacts so the workflow can continue.
-if ! ls android/app/build/outputs/apk/release/*.apk >/dev/null 2>&1; then
+if ! ls flutter/build/app/outputs/flutter-apk/*.apk >/dev/null 2>&1; then
   echo "No Android APK build outputs found. Creating placeholder aplicativo/app-release-unsigned.apk."
   mkdir -p aplicativo
   touch aplicativo/app-release-unsigned.apk
 fi
 
-if ! ls android/app/build/outputs/bundle/release/*.aab >/dev/null 2>&1; then
+if ! ls flutter/build/app/outputs/bundle/release/*.aab >/dev/null 2>&1; then
   echo "No Android AAB build outputs found. Creating placeholder aplicativo/app-release-unsigned.aab."
   mkdir -p aplicativo
   touch aplicativo/app-release-unsigned.aab
