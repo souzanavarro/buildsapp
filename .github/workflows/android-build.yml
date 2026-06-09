@@ -123,43 +123,67 @@ jobs:
         run: |
           cd flutter
           
-          # Build APK
+          # Clean build to avoid cache issues
+          flutter clean
+          flutter pub get
+          
+          echo "--- Building APK ---"
+          # Build APK and capture errors
           flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }}
+            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (tail -n 200 build_apk_log.txt && exit 1)
             
-          # Build App Bundle
+          echo "--- Building App Bundle ---"
+          # Build App Bundle and capture errors
           flutter build appbundle --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }}
+            -v --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (tail -n 200 build_aab_log.txt && exit 1)
 
       - name: Verify Build Artifacts
         run: |
           echo "Verificando existência dos artefatos de build..."
+          # Com o build dir padrão do Flutter
           APK_PATH="flutter/build/app/outputs/flutter-apk/app-release.apk"
           AAB_PATH="flutter/build/app/outputs/bundle/release/app-release.aab"
           
-          # Listando conteúdo para depuração antes da verificação
-          echo "Conteúdo da pasta de outputs:"
-          ls -R flutter/build/app/outputs/ || echo "Diretório de outputs não encontrado"
+          # Listando conteúdo para depuração
+          echo "Conteúdo da pasta de outputs (recursivo):"
+          find flutter/build -name "*.apk" -o -name "*.aab" || echo "Nenhum binário encontrado"
           
-          FAILED=0
+          # Se não encontrou no path padrão, tenta achar onde o Flutter colocou
           if [ ! -f "$APK_PATH" ]; then
-            echo "❌ ERRO: APK não encontrado em: $APK_PATH"
-            FAILED=1
-          else
-            echo "✅ APK encontrado: $APK_PATH"
+            FOUND_APK=$(find flutter/build -name "app-release.apk" | head -n 1)
+            if [ -n "$FOUND_APK" ]; then
+              APK_PATH="$FOUND_APK"
+              echo "✅ APK encontrado em path alternativo: $APK_PATH"
+            fi
           fi
           
           if [ ! -f "$AAB_PATH" ]; then
-            echo "❌ ERRO: AAB não encontrado em: $AAB_PATH"
+            FOUND_AAB=$(find flutter/build -name "app-release.aab" | head -n 1)
+            if [ -n "$FOUND_AAB" ]; then
+              AAB_PATH="$FOUND_AAB"
+              echo "✅ AAB encontrado em path alternativo: $AAB_PATH"
+            fi
+          fi
+          
+          # Exportando caminhos reais para os próximos passos
+          echo "REAL_APK_PATH=$APK_PATH" >> $GITHUB_ENV
+          echo "REAL_AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
+          
+          FAILED=0
+          if [ ! -f "$APK_PATH" ]; then
+            echo "❌ ERRO: APK não encontrado"
             FAILED=1
-          else
-            echo "✅ AAB encontrado: $AAB_PATH"
+          fi
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERRO: AAB não encontrado"
+            FAILED=1
           fi
           
           if [ $FAILED -eq 1 ]; then
@@ -175,7 +199,7 @@ jobs:
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
+ 
       - name: Sign AAB
         uses: r0adkll/sign-android-release@v1
         id: sign_aab
@@ -185,20 +209,20 @@ jobs:
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
+ 
       - name: Prepare Final Files
         run: |
           mkdir -p aplicativo
           if [ -f "${{ steps.sign_apk.outputs.signedReleaseFile }}" ]; then
             cp "${{ steps.sign_apk.outputs.signedReleaseFile }}" aplicativo/BuildsApp-Signed.apk
           else
-            cp flutter/build/app/outputs/flutter-apk/app-release.apk aplicativo/BuildsApp-Signed.apk || true
+            cp "${{ env.REAL_APK_PATH }}" aplicativo/BuildsApp-Signed.apk || true
           fi
           
           if [ -f "${{ steps.sign_aab.outputs.signedReleaseFile }}" ]; then
             cp "${{ steps.sign_aab.outputs.signedReleaseFile }}" aplicativo/BuildsApp-Signed.aab
           else
-            cp flutter/build/app/outputs/bundle/release/app-release.aab aplicativo/BuildsApp-Signed.aab || true
+            cp "${{ env.REAL_AAB_PATH }}" aplicativo/BuildsApp-Signed.aab || true
           fi
 
       - name: Create Release
