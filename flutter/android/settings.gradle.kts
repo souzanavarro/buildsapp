@@ -19,11 +19,11 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
-                useVersion("2.2.20")
+                useVersion("2.0.20")
             }
 
             if (requested.id.id == "com.android.application") {
-                useVersion("8.11.1")
+                useVersion("8.7.3")
             }
         }
     }
@@ -31,10 +31,10 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.11.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
-    id("org.jetbrains.kotlin.jvm") version "2.2.20" apply false
-    id("org.jetbrains.kotlin.kapt") version "2.2.20" apply false
+    id("com.android.application") version "8.7.3" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.20" apply false
+    id("org.jetbrains.kotlin.jvm") version "2.0.20" apply false
+    id("org.jetbrains.kotlin.kapt") version "2.0.20" apply false
 }
 
 include(":app")

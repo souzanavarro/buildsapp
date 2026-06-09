@@ -73,6 +73,14 @@ jobs:
       - name: Build Flutter App
         run: |
           cd flutter
+          echo "Checking Gradle configuration..."
+          cat android/gradle/wrapper/gradle-wrapper.properties
+          
+          # Se o gradlew não existir, o Flutter tentará criá-lo, mas vamos garantir permissões
+          if [ -f "android/gradlew" ]; then
+            chmod +x android/gradlew
+          fi
+          
           flutter pub get
           flutter build apk --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
           flutter build appbundle --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
