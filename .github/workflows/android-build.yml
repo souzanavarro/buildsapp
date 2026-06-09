@@ -92,33 +92,19 @@ jobs:
           echo "Flutter: $(flutter --version | head -n 1)"
           echo "Java: $(java -version 2>&1 | head -n 1)"
           
-          # Derive Flutter root from the installed flutter binary or use FLUTTER_ROOT if set
-          FLUTTER_ROOT_PATH="${FLUTTER_ROOT:-$(dirname "$(dirname "$(realpath "$(command -v flutter)")")") }"
-          FLUTTER_ROOT_PATH="${FLUTTER_ROOT_PATH% }"
-          if [ -z "$FLUTTER_ROOT_PATH" ] || [ ! -d "$FLUTTER_ROOT_PATH" ]; then
-            echo "❌ ERROR: Flutter SDK path could not be determined."
-            exit 1
-          fi
-          export FLUTTER_ROOT="$FLUTTER_ROOT_PATH"
-
-          ANDROID_SDK_PATH="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          if [ -z "$ANDROID_SDK_PATH" ] || [ ! -d "$ANDROID_SDK_PATH" ]; then
-            echo "❌ ERROR: Android SDK path could not be determined."
-            exit 1
-          fi
-          export ANDROID_HOME="$ANDROID_SDK_PATH"
-          export ANDROID_SDK_ROOT="$ANDROID_SDK_PATH"
-
+          # Tentativa robusta de encontrar o path do Flutter
+          FLUTTER_ROOT_PATH=$(flutter doctor -v | grep -i "Flutter SDK at" | sed 's/.*at \(.*\)/\1/' | xargs echo || echo "$FLUTTER_ROOT")
           echo "Flutter SDK Path: $FLUTTER_ROOT_PATH"
-          echo "Android SDK Path: $ANDROID_SDK_PATH"
           
           echo "--- Project Structure ---"
           ls -R flutter/android
           
-          # Ensure local.properties exists in flutter/android
+          # Garantir que local.properties existe em flutter/android
           cd flutter/android
-          echo "sdk.dir=$ANDROID_SDK_PATH" > local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT_PATH" >> local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          if [ -n "$FLUTTER_ROOT_PATH" ]; then
+            echo "flutter.sdk=$FLUTTER_ROOT_PATH" >> local.properties
+          fi
           echo "--- local.properties ---"
           cat local.properties
           
@@ -129,7 +115,8 @@ jobs:
           fi
           
           chmod +x gradlew
-          ./gradlew help --no-daemon --stacktrace || { echo "Gradle warmup failed, attempting build anyway..."; true; }
+          # Gradle warmup opcional, ignoramos erro se falhar apenas no warmup
+          ./gradlew help --no-daemon --stacktrace || echo "Gradle warmup failed, attempting build anyway..."
 
 
       - name: Build Flutter App
@@ -142,15 +129,12 @@ jobs:
           
           # Re-verify local.properties
           if [ ! -f "android/local.properties" ]; then
-            FLUTTER_ROOT_PATH="${FLUTTER_ROOT:-$(dirname "$(dirname "$(realpath "$(command -v flutter)")")") }"
-            FLUTTER_ROOT_PATH="${FLUTTER_ROOT_PATH% }"
-            ANDROID_SDK_PATH="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-            if [ -z "$FLUTTER_ROOT_PATH" ] || [ -z "$ANDROID_SDK_PATH" ]; then
-              echo "❌ ERROR: Cannot determine SDK paths for local.properties."
-              exit 1
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+            # Try to get path again safely
+            SAFE_FLUTTER_PATH=$(flutter doctor -v | grep "Flutter SDK at" | awk '{print $4}' || echo "")
+            if [ -n "$SAFE_FLUTTER_PATH" ]; then
+              echo "flutter.sdk=$SAFE_FLUTTER_PATH" >> android/local.properties
             fi
-            echo "sdk.dir=$ANDROID_SDK_PATH" > android/local.properties
-            echo "flutter.sdk=$FLUTTER_ROOT_PATH" >> android/local.properties
           fi
 
 
