@@ -36,7 +36,7 @@ dependencies:
   video_player: ^2.8.2
   record: ^5.1.0
   audioplayers: ^5.2.1
-  mapbox_maps_flutter: ^0.5.1
+  
   flutter_tts: ^4.0.2
   sensors_plus: ^5.0.1
   firebase_messaging: ^14.9.4

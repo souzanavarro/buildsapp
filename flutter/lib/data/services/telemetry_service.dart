@@ -28,6 +28,11 @@ class TelemetryService {
     // Enviar para backend via telemetry_service existente
   }
 
+  static void updateLocation() {
+    // Implementação pendente do envio de telemetria de localização
+  }
+
+
   double get currentScore => _brakingScore.clamp(0, 100);
 
   void stop() {

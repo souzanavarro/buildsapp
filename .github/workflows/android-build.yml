@@ -133,7 +133,7 @@ jobs:
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (echo "APK Build Failed. Tail of log:" && tail -n 300 build_apk_log.txt && exit 1)
+            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (echo "❌ APK Build Failed. Last 500 lines of log:" && tail -n 500 build_apk_log.txt && exit 1)
             
           echo "--- Building App Bundle ---"
           # Build App Bundle and capture errors
@@ -141,7 +141,8 @@ jobs:
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub \
-            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (echo "AAB Build Failed. Tail of log:" && tail -n 300 build_aab_log.txt && exit 1)
+            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (echo "❌ AAB Build Failed. Last 500 lines of log:" && tail -n 500 build_aab_log.txt && exit 1)
+
 
       - name: Verify Build Artifacts
         run: |

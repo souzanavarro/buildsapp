@@ -29,8 +29,7 @@ data class ChatMessageEntity(
     val synced: Boolean = false
 )
 
-    @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp, proof_image_path = :imagePath, proof_ocr_text = :ocrText WHERE id = :id")
-    suspend fun updateStatusWithProof(id: String, status: String, pending: Boolean, imagePath: String?, ocrText: String?, timestamp: Long = System.currentTimeMillis())
+
 
 
 @Entity(tableName = "audit_logs")
@@ -64,6 +63,10 @@ interface DeliveryDao {
 
     @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp WHERE id = :id")
     suspend fun updateStatus(id: String, status: String, pending: Boolean, timestamp: Long = System.currentTimeMillis())
+
+    @Query("UPDATE deliveries SET status = :status, sync_pending = :pending, last_updated = :timestamp, proof_image_path = :imagePath, proof_ocr_text = :ocrText WHERE id = :id")
+    suspend fun updateStatusWithProof(id: String, status: String, pending: Boolean, imagePath: String?, ocrText: String?, timestamp: Long = System.currentTimeMillis())
+
 
     @Query("SELECT * FROM deliveries WHERE sync_pending = 1")
     suspend fun getPendingDeliveries(): List<DeliveryEntity>
