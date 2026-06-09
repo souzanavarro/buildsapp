@@ -18,8 +18,13 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@49819abfb4d544d8f2873151246a06634537f302 # v1.0
+        with:
+          swap-size-gb: 10
+
       - name: Checkout Source
-        uses: actions/checkout@v4
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
 
@@ -41,34 +46,34 @@ jobs:
       - name: Calculate Versioning
         id: versioning
         run: |
-          VERSION_NAME=$(git describe --tags --always || echo "1.0.${{ github.run_number }}")
-          VERSION_CODE=$((1000 + ${{ github.run_number }}))
+          VERSION_NAME="1"
+          VERSION_CODE="1"
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
           echo "🔢 Build Version: $VERSION_NAME ($VERSION_CODE)"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@60edb5dd545a775178f52524742353778a211965 # v4.0.1
         with:
           node-version: 22
           cache: 'npm'
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@387ac29b9965a3962e650c1120dca83057e3ad3a # v4.0.0
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@44ac965b96f18d999802d4b807e3256d5a3f9fa1 # v2.12.0
         with:
           flutter-version: '3.22.2'
           channel: 'stable'
           cache: true
 
       - name: Cache Gradle Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@13f13d73163bd5125841d832db47ce1eeef627ed # v4.0.0
         with:
           path: |
             ~/.gradle/caches
@@ -78,7 +83,7 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Cache Pub Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@13f13d73163bd5125841d832db47ce1eeef627ed # v4.0.0
         with:
           path: |
             ~/.pub-cache
@@ -128,7 +133,7 @@ jobs:
 
       - name: Build Flutter App
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2g -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1 -Dorg.gradle.caching=true"
         run: |
           cd flutter
           
@@ -136,18 +141,18 @@ jobs:
           echo "--- Building APK ---"
           # Build APK and capture all output
           flutter build apk --release -v \
-            --build-number=${{ env.VERSION_CODE }} \
-            --build-name=${{ env.VERSION_NAME }} \
+            --build-number=1 \
+            --build-name=1 \
             --no-pub \
-            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_apk_log.txt 2>&1 || (echo "❌ APK Build Failed. Last 1000 lines of log:" && tail -n 1000 build_apk_log.txt && exit 1)
+            --dart-define=VERSION_CODE=1 --dart-define=VERSION_NAME=1 > build_apk_log.txt 2>&1 || (echo "❌ APK Build Failed. Last 1000 lines of log:" && tail -n 1000 build_apk_log.txt && exit 1)
             
           echo "--- Building App Bundle ---"
           # Build App Bundle and capture all output
           flutter build appbundle --release -v \
-            --build-number=${{ env.VERSION_CODE }} \
-            --build-name=${{ env.VERSION_NAME }} \
+            --build-number=1 \
+            --build-name=1 \
             --no-pub \
-            --dart-define=VERSION_CODE=${{ env.VERSION_CODE }} --dart-define=VERSION_NAME=${{ env.VERSION_NAME }} > build_aab_log.txt 2>&1 || (echo "❌ AAB Build Failed. Last 1000 lines of log:" && tail -n 1000 build_aab_log.txt && exit 1)
+            --dart-define=VERSION_CODE=1 --dart-define=VERSION_NAME=1 > build_aab_log.txt 2>&1 || (echo "❌ AAB Build Failed. Last 1000 lines of log:" && tail -n 1000 build_aab_log.txt && exit 1)
 
 
       - name: Verify Build Artifacts
@@ -198,7 +203,7 @@ jobs:
           fi
 
       - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
+        uses: r0adkll/sign-android-release@349ebca963c6ca66675dfad00244799014605963 # v1.0.4
         id: sign_apk
         with:
           releaseDirectory: flutter/build/app/outputs/flutter-apk
@@ -208,7 +213,7 @@ jobs:
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
  
       - name: Sign AAB
-        uses: r0adkll/sign-android-release@v1
+        uses: r0adkll/sign-android-release@349ebca963c6ca66675dfad00244799014605963 # v1.0.4
         id: sign_aab
         with:
           releaseDirectory: flutter/build/app/outputs/bundle/release
@@ -240,7 +245,7 @@ jobs:
 
       - name: Create Release
         if: success()
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@9d7c94cfd0a1d3ed8bc3b1db136618408759392e # v2.0.4
         with:
           tag_name: ${{ env.VERSION_NAME }}
           name: Release ${{ env.VERSION_NAME }}
@@ -253,7 +258,7 @@ jobs:
 
       - name: Upload Build Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: build-assets-${{ env.VERSION_NAME }}-${{ github.run_number }}
           path: |
