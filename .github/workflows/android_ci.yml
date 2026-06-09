@@ -12,6 +12,7 @@ on:
     paths:
       - 'flutter/android/**'
       - 'pubspec.yaml'
+  workflow_dispatch:
 
 
 jobs:
