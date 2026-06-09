@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -71,24 +71,46 @@ jobs:
         run: npm ci
 
       - name: Build Flutter App
-        working-directory: flutter
         run: |
+          cd flutter
           flutter pub get
-          flutter build apk --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
-          flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
+          flutter build apk --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
+          flutter build appbundle --release --verbose --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
-      - name: Debug Output Paths
+      - name: Verify Build Artifacts
         run: |
-          echo "Checking APK output directory:"
-          ls -R flutter/build/app/outputs/flutter-apk/ || true
-          echo "Checking AAB output directory:"
-          ls -R flutter/build/app/outputs/bundle/release/ || true
+          echo "Verificando existência dos artefatos de build..."
+          APK_PATH="flutter/build/app/outputs/flutter-apk/app-release.apk"
+          AAB_PATH="flutter/build/app/outputs/bundle/release/app-release.aab"
+          
+          # Listando conteúdo para depuração antes da verificação
+          echo "Conteúdo da pasta de outputs:"
+          ls -R flutter/build/app/outputs/ || echo "Diretório de outputs não encontrado"
+          
+          FAILED=0
+          if [ ! -f "$APK_PATH" ]; then
+            echo "❌ ERRO: APK não encontrado em: $APK_PATH"
+            FAILED=1
+          else
+            echo "✅ APK encontrado: $APK_PATH"
+          fi
+          
+          if [ ! -f "$AAB_PATH" ]; then
+            echo "❌ ERRO: AAB não encontrado em: $AAB_PATH"
+            FAILED=1
+          else
+            echo "✅ AAB encontrado: $AAB_PATH"
+          fi
+          
+          if [ $FAILED -eq 1 ]; then
+            exit 1
+          fi
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
-          releaseDirectory: ${{ github.workspace }}/flutter/build/app/outputs/flutter-apk
+          releaseDirectory: flutter/build/app/outputs/flutter-apk
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -98,7 +120,7 @@ jobs:
         uses: r0adkll/sign-android-release@v1
         id: sign_aab
         with:
-          releaseDirectory: ${{ github.workspace }}/flutter/build/app/outputs/bundle/release
+          releaseDirectory: flutter/build/app/outputs/bundle/release
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
