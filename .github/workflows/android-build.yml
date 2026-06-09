@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: false
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
           
           if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
             echo "❌ CRITICAL ERROR: Missing required signing secrets: ${MISSING_SECRETS[*]}"
-            echo "Please configure them in GitHub Settings > Secrets and Variables > Actions"
+            echo "Please configure them in GitHub Actions secrets."
             exit 1
           fi
           echo "✅ All signing secrets are present."
@@ -41,29 +41,11 @@ jobs:
       - name: Calculate Versioning
         id: versioning
         run: |
-          # Get version name from tag if present, else use run number
           VERSION_NAME=$(git describe --tags --always || echo "1.0.${{ github.run_number }}")
-          # Ensure version code is a valid integer (must be > 0)
           VERSION_CODE=$((1000 + ${{ github.run_number }}))
-          
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
-          echo "::set-output name=version_name::$VERSION_NAME"
-          echo "::set-output name=version_code::$VERSION_CODE"
           echo "🔢 Build Version: $VERSION_NAME ($VERSION_CODE)"
-
-      - name: Register Build Start in Dashboard
-        run: |
-          curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/notify-build-complete" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"version\": \"$VERSION_NAME\",
-            \"status\": \"building\",
-            \"github_run_id\": \"${{ github.run_id }}\",
-            \"build_id\": \"${{ github.event.inputs.build_id }}\"
-          }"
-        continue-on-error: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -76,97 +58,66 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          flutter-version: '3.22.2'
+          channel: 'stable'
+          cache: true
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Build Script
-        env:
-          ANDROID_VERSION_CODE: ${{ env.VERSION_CODE }}
-          ANDROID_VERSION_NAME: ${{ env.VERSION_NAME }}
+      - name: Build Flutter App
         run: |
-          chmod +x scripts/generate-mobile-assets.sh
-          ./scripts/generate-mobile-assets.sh
+          cd flutter
+          flutter pub get
+          flutter build apk --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
+          flutter build appbundle --release --build-number=${{ env.VERSION_CODE }} --build-name=${{ env.VERSION_NAME }}
 
-      - name: Detect Android artifacts
-        id: detect_android_artifacts
+      - name: Debug Output Paths
         run: |
-          APK_EXISTS=false
-          AAB_EXISTS=false
-
-          if [ -d android/app/build/outputs/apk/release ] && ls android/app/build/outputs/apk/release/*.apk >/dev/null 2>&1; then
-            APK_EXISTS=true
-          fi
-          if [ -d android/app/build/outputs/bundle/release ] && ls android/app/build/outputs/bundle/release/*.aab >/dev/null 2>&1; then
-            AAB_EXISTS=true
-          fi
-
-          echo "apk_exists=$APK_EXISTS" >> $GITHUB_OUTPUT
-          echo "aab_exists=$AAB_EXISTS" >> $GITHUB_OUTPUT
+          echo "Checking APK output directory:"
+          ls -R flutter/build/app/outputs/flutter-apk/
+          echo "Checking AAB output directory:"
+          ls -R flutter/build/app/outputs/bundle/release/
 
       - name: Sign APK
-        if: steps.detect_android_artifacts.outputs.apk_exists == 'true'
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
-          releaseDirectory: android/app/build/outputs/apk/release
+          releaseDirectory: flutter/build/app/outputs/flutter-apk
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
       - name: Sign AAB
-        if: steps.detect_android_artifacts.outputs.aab_exists == 'true'
         uses: r0adkll/sign-android-release@v1
         id: sign_aab
         with:
-          releaseDirectory: android/app/build/outputs/bundle/release
+          releaseDirectory: flutter/build/app/outputs/bundle/release
           signingKeyBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      - name: Prepare Final Files in 'aplicativo' folder
+      - name: Prepare Final Files
         run: |
           mkdir -p aplicativo
-          # Copy signed files if they exist, fallback to unsigned but keep the name consistent
           if [ -f "${{ steps.sign_apk.outputs.signedReleaseFile }}" ]; then
-            cp "${{ steps.sign_apk.outputs.signedReleaseFile }}" aplicativo/RotaCerta-Signed.apk
+            cp "${{ steps.sign_apk.outputs.signedReleaseFile }}" aplicativo/BuildsApp-Signed.apk
           else
-            cp aplicativo/app-release-unsigned.apk aplicativo/RotaCerta-Signed.apk || true
+            cp flutter/build/app/outputs/flutter-apk/app-release.apk aplicativo/BuildsApp-Signed.apk || true
           fi
           
           if [ -f "${{ steps.sign_aab.outputs.signedReleaseFile }}" ]; then
-            cp "${{ steps.sign_aab.outputs.signedReleaseFile }}" aplicativo/RotaCerta-Signed.aab
+            cp "${{ steps.sign_aab.outputs.signedReleaseFile }}" aplicativo/BuildsApp-Signed.aab
           else
-            cp aplicativo/app-release-unsigned.aab aplicativo/RotaCerta-Signed.aab || true
+            cp flutter/build/app/outputs/bundle/release/app-release.aab aplicativo/BuildsApp-Signed.aab || true
           fi
-          echo "Arquivos preparados na pasta aplicativo/"
-
-      - name: Upload Build Artifacts (Logs & Reports)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-diagnostics-${{ env.VERSION_NAME }}
-          path: |
-            build-reports/
-            android/app/build/outputs/mapping/release/
-            aplicativo/
-          retention-days: 7
 
       - name: Create Release
         if: success()
@@ -175,33 +126,21 @@ jobs:
           tag_name: ${{ env.VERSION_NAME }}
           name: Release ${{ env.VERSION_NAME }}
           files: |
-            aplicativo/RotaCerta-Signed.apk
-            aplicativo/RotaCerta-Signed.aab
+            aplicativo/BuildsApp-Signed.apk
+            aplicativo/BuildsApp-Signed.aab
           body: "Nova versão ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }}) gerada automaticamente."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Assets to Supabase Storage
-        if: success()
-        continue-on-error: true
-        run: |
-          APK_STORAGE_PATH="RotaCerta-${{ env.VERSION_NAME }}.apk"
-          AAB_STORAGE_PATH="RotaCerta-${{ env.VERSION_NAME }}.aab"
-          
-          curl -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/internal-apks/$APK_STORAGE_PATH" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          -H "Content-Type: application/vnd.android.package-archive" \
-          --data-binary "@aplicativo/RotaCerta-Signed.apk"
-          
-          curl -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/internal-apks/$AAB_STORAGE_PATH" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-          -H "Content-Type: application/octet-stream" \
-          --data-binary "@aplicativo/RotaCerta-Signed.aab"
-          
-          echo "APK_STORAGE_PATH=$APK_STORAGE_PATH" >> $GITHUB_ENV
-          echo "AAB_STORAGE_PATH=$AAB_STORAGE_PATH" >> $GITHUB_ENV
+      - name: Upload Build Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-assets-${{ env.VERSION_NAME }}
+          path: aplicativo/
+          retention-days: 7
 
-      - name: Notify Success in Dashboard
+      - name: Notify Dashboard Success
         if: success()
         run: |
           curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/notify-build-complete" \
@@ -211,13 +150,11 @@ jobs:
             \"version\": \"${{ env.VERSION_NAME }}\",
             \"status\": \"success\",
             \"github_run_id\": \"${{ github.run_id }}\",
-            \"build_id\": \"${{ github.event.inputs.build_id }}\",
-            \"storage_path\": \"${{ env.APK_STORAGE_PATH }}\",
-            \"aab_storage_path\": \"${{ env.AAB_STORAGE_PATH }}\"
+            \"build_id\": \"${{ github.event.inputs.build_id }}\"
           }"
         continue-on-error: true
 
-      - name: Notify Failure in Dashboard
+      - name: Notify Dashboard Failure
         if: failure()
         run: |
           curl -X POST "${{ secrets.SUPABASE_URL }}/functions/v1/notify-build-complete" \
@@ -227,7 +164,6 @@ jobs:
             \"version\": \"${{ env.VERSION_NAME }}\",
             \"status\": \"error\",
             \"github_run_id\": \"${{ github.run_id }}\",
-            \"build_id\": \"${{ github.event.inputs.build_id }}\",
             \"error_message\": \"Build failed in GitHub Actions. Check logs at https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
           }"
         continue-on-error: true
