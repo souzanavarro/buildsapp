@@ -104,17 +104,30 @@ jobs:
           # Garantir que local.properties existe em flutter/android
           if [ -d "flutter/android" ]; then
             cd flutter/android
-            echo "sdk.dir=$ANDROID_HOME" > local.properties
-            echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
-            echo "flutter.versionName=${{ env.VERSION_NAME }}" >> local.properties
-            echo "flutter.versionCode=${{ env.VERSION_CODE }}" >> local.properties
+            
+            # Criar local.properties robusto
+            cat > local.properties << EOF
+sdk.dir=$ANDROID_HOME
+flutter.sdk=$FLUTTER_SDK_PATH
+flutter.versionName=${{ env.VERSION_NAME }}
+flutter.versionCode=${{ env.VERSION_CODE }}
+EOF
             echo "--- local.properties content ---"
             cat local.properties
             
+            # Ajustar gradle.properties para evitar problemas de memória e daemon
+            cat >> gradle.properties << EOF
+org.gradle.daemon=false
+org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
+android.useAndroidX=true
+android.enableJetifier=true
+EOF
+
             echo "--- Validating Gradle Wrapper ---"
             if [ -f "gradlew" ]; then
               chmod +x gradlew
-              ./gradlew help --no-daemon || echo "Gradle warmup failed, continuing..."
+              # Aumentar verbosidade do Gradle se necessário no futuro, mas por enquanto garantir o daemon off
+              ./gradlew help --no-daemon --stacktrace || echo "Gradle warmup failed, continuing..."
             else
               echo "⚠️ gradlew not found in flutter/android"
             fi
@@ -124,23 +137,33 @@ jobs:
           fi
 
 
+
       - name: Build Flutter App
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
         run: |
           cd flutter
           
-          # Build APK
+          # Tentativa de build ignorando erros de cache se houver
+          flutter clean
+          flutter pub get
+          
+          echo "🚀 Iniciando build do APK..."
+          # Build APK com flags para mais estabilidade e log
           flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            -v
+            --no-tree-shake-icons \
+            --verbose || { echo "❌ Falha no build do APK"; exit 1; }
             
+          echo "🚀 Iniciando build do App Bundle..."
           # Build App Bundle
           flutter build appbundle --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            -v
+            --no-tree-shake-icons \
+            --verbose || { echo "❌ Falha no build do App Bundle"; exit 1; }
+
 
       - name: Verify Build Artifacts
         run: |
