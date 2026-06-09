@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '21'
+          java-version: '17'
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -77,64 +77,60 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Debug Info & Gradle Warmup
-        run: |
-          echo "--- Versions Report ---"
-          echo "Flutter: $(flutter --version | head -n 1)"
-          echo "Dart: $(dart --version)"
-          echo "Java: $(java -version 2>&1 | head -n 1)"
-          
-          echo "--- Project Structure ---"
-          ls -R flutter/android
-          
-          # Ensure local.properties exists before warmup
-          cd flutter
-          mkdir -p android
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
-          echo "--- local.properties ---"
-          cat android/local.properties
-          
-          cd android
-          
-          echo "--- Validating Gradle Wrapper ---"
-          if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-            echo "❌ ERROR: gradle-wrapper.properties not found!"
-            exit 1
-          fi
-          DIST_URL=$(grep 'distributionUrl' gradle/wrapper/gradle-wrapper.properties)
-          echo "Gradle Distribution: $DIST_URL"
-          if [[ ! "$DIST_URL" =~ "https://services.gradle.org/distributions/gradle-" ]]; then
-            echo "⚠️ WARNING: Custom or invalid Gradle distribution URL detected."
-          fi
-          
-          echo "--- AGP & Kotlin Versions ---"
-          # Tentativa de obter versões do AGP e Kotlin do settings.gradle.kts
-          echo "AGP Version: $(grep 'com.android.application' settings.gradle.kts | grep 'version' | sed -E 's/.*version \"(.*)\".*/\1/' | head -1 || echo 'Not found')"
-          echo "Kotlin Version: $(grep 'org.jetbrains.kotlin' settings.gradle.kts | grep 'version' | sed -E 's/.*version \"(.*)\".*/\1/' | head -1 || echo 'Not found')"
-          
-          echo "--- Pre-downloading Gradle & Dependencies ---"
-          chmod +x gradlew
-          ./gradlew help --no-daemon --stacktrace --max-workers=2 || { echo "Gradle warmup failed, attempting build anyway..."; true; }
-
       - name: Install Dependencies
         run: |
           cd flutter
-          
-          # Ensure local.properties for Android build
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
-          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
           
           # Retry mechanism for pub get
           for i in {1..3}; do
             flutter pub get && break || sleep 10
           done
 
+      - name: Debug Info & Gradle Warmup
+        run: |
+          echo "--- Versions Report ---"
+          echo "Flutter: $(flutter --version | head -n 1)"
+          echo "Java: $(java -version 2>&1 | head -n 1)"
+          
+          # Identify Flutter Root
+          FLUTTER_SDK_PATH=$(flutter sdk-path)
+          echo "Flutter SDK Path: $FLUTTER_SDK_PATH"
+          
+          echo "--- Project Structure ---"
+          ls -R flutter/android
+          
+          # Ensure local.properties exists in flutter/android
+          cd flutter/android
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
+          echo "--- local.properties ---"
+          cat local.properties
+          
+          echo "--- Validating Gradle Wrapper ---"
+          if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            echo "❌ ERROR: gradle-wrapper.properties not found!"
+            exit 1
+          fi
+          
+          chmod +x gradlew
+          ./gradlew help --no-daemon --stacktrace || { echo "Gradle warmup failed, attempting build anyway..."; true; }
+
+
       - name: Build Flutter App
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          ORG_GRADLE_PROJECT_VERSION_CODE: ${{ env.VERSION_CODE }}
+          ORG_GRADLE_PROJECT_VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           cd flutter
+          
+          # Re-verify local.properties
+          if [ ! -f "android/local.properties" ]; then
+            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+            echo "flutter.sdk=$(flutter sdk-path)" >> android/local.properties
+          fi
+
+
           
           # Build APK
           flutter build apk --release --verbose \
