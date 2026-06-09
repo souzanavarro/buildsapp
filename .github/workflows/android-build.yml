@@ -12,7 +12,6 @@ on:
         required: false
         type: string
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -73,12 +72,10 @@ jobs:
         with:
           path: |
             ~/.pub-cache
+            flutter/.dart_tool
           key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pub-
-
-      - name: Accept Android Licenses
-        run: yes | flutter doctor --android-licenses || true
 
       - name: Install Dependencies
         run: |
@@ -96,39 +93,21 @@ jobs:
           java -version || true
           
           # Encontrar o path do Flutter de forma segura
-          FLUTTER_SDK_PATH=$FLUTTER_ROOT
-          if [ -z "$FLUTTER_SDK_PATH" ]; then
-            FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
-          fi
+          FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
           echo "Flutter SDK Path: $FLUTTER_SDK_PATH"
           
           # Garantir que local.properties existe em flutter/android
           if [ -d "flutter/android" ]; then
             cd flutter/android
-            
-            # Criar local.properties robusto
-            cat > local.properties << EOF
-sdk.dir=$ANDROID_HOME
-flutter.sdk=$FLUTTER_SDK_PATH
-flutter.versionName=${{ env.VERSION_NAME }}
-flutter.versionCode=${{ env.VERSION_CODE }}
-EOF
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+            echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
             echo "--- local.properties content ---"
             cat local.properties
             
-            # Ajustar gradle.properties para evitar problemas de memória e daemon
-            cat >> gradle.properties << EOF
-org.gradle.daemon=false
-org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m
-android.useAndroidX=true
-android.enableJetifier=true
-EOF
-
             echo "--- Validating Gradle Wrapper ---"
             if [ -f "gradlew" ]; then
               chmod +x gradlew
-              # Aumentar verbosidade do Gradle se necessário no futuro, mas por enquanto garantir o daemon off
-              ./gradlew help --no-daemon --stacktrace || echo "Gradle warmup failed, continuing..."
+              ./gradlew help --no-daemon || echo "Gradle warmup failed, continuing..."
             else
               echo "⚠️ gradlew not found in flutter/android"
             fi
@@ -138,33 +117,25 @@ EOF
           fi
 
 
-
       - name: Build Flutter App
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
+          ORG_GRADLE_PROJECT_VERSION_CODE: ${{ env.VERSION_CODE }}
+          ORG_GRADLE_PROJECT_VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           cd flutter
           
-          # Tentativa de build ignorando erros de cache se houver
-          flutter clean
-          flutter pub get
-          
-          echo "🚀 Iniciando build do APK..."
-          # Build APK com flags para mais estabilidade e log
+          # Build APK
           flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            --no-tree-shake-icons \
-            --verbose || { echo "❌ Falha no build do APK"; exit 1; }
+            --no-pub
             
-          echo "🚀 Iniciando build do App Bundle..."
           # Build App Bundle
           flutter build appbundle --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
-            --no-tree-shake-icons \
-            --verbose || { echo "❌ Falha no build do App Bundle"; exit 1; }
-
+            --no-pub
 
       - name: Verify Build Artifacts
         run: |
