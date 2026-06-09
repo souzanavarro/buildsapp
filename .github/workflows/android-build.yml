@@ -82,7 +82,8 @@ jobs:
         with:
           path: |
             ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.yaml') }}
+            flutter/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -127,17 +128,13 @@ jobs:
 
       - name: Build Flutter App
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.parallel=false -Dorg.gradle.workers.max=1"
         run: |
           cd flutter
           
-          # Clean build to avoid cache issues
-          flutter clean
-          flutter pub get
-          
+          # Optimization: Build only what's needed
           echo "--- Building APK ---"
           # Build APK and capture all output
-          # Using -v for verbose output to debug compilation errors
           flutter build apk --release -v \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
