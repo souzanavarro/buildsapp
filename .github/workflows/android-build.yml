@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: false
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Setup Flutter
@@ -84,7 +84,18 @@ jobs:
           echo "Dart: $(dart --version)"
           echo "Java: $(java -version 2>&1 | head -n 1)"
           
-          cd flutter/android
+          echo "--- Project Structure ---"
+          ls -R flutter/android
+          
+          # Ensure local.properties exists before warmup
+          cd flutter
+          mkdir -p android
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          echo "--- local.properties ---"
+          cat android/local.properties
+          
+          cd android
           
           echo "--- Validating Gradle Wrapper ---"
           if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
@@ -104,11 +115,16 @@ jobs:
           
           echo "--- Pre-downloading Gradle & Dependencies ---"
           chmod +x gradlew
-          ./gradlew help --no-daemon --stacktrace --max-workers=2
+          ./gradlew help --no-daemon --stacktrace --max-workers=2 || { echo "Gradle warmup failed, attempting build anyway..."; true; }
 
       - name: Install Dependencies
         run: |
           cd flutter
+          
+          # Ensure local.properties for Android build
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" >> android/local.properties
+          
           # Retry mechanism for pub get
           for i in {1..3}; do
             flutter pub get && break || sleep 10

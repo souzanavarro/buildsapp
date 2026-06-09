@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.rota_certa"
-    compileSdk = 35
+    compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
     buildFeatures {
@@ -30,7 +30,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 23 // Required for Car App Library
-        targetSdk = 35
+        targetSdk = 34
         
         // Auto-increment versioning logic (can be overridden by CI)
         val buildNumber = project.findProperty("VERSION_CODE")?.toString()?.toInt() ?: flutter.versionCode
