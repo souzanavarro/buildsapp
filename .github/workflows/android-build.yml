@@ -89,64 +89,50 @@ jobs:
       - name: Debug Info & Gradle Warmup
         run: |
           echo "--- Versions Report ---"
-          echo "Flutter: $(flutter --version | head -n 1)"
-          echo "Java: $(java -version 2>&1 | head -n 1)"
+          flutter --version || true
+          java -version || true
           
-          # Tentativa robusta de encontrar o path do Flutter
-          FLUTTER_ROOT_PATH=$(flutter doctor -v | grep -i "Flutter SDK at" | sed 's/.*at \(.*\)/\1/' | xargs echo || echo "$FLUTTER_ROOT")
-          echo "Flutter SDK Path: $FLUTTER_ROOT_PATH"
-          
-          echo "--- Project Structure ---"
-          ls -R flutter/android
+          # Encontrar o path do Flutter de forma segura
+          FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
+          echo "Flutter SDK Path: $FLUTTER_SDK_PATH"
           
           # Garantir que local.properties existe em flutter/android
-          cd flutter/android
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          if [ -n "$FLUTTER_ROOT_PATH" ]; then
-            echo "flutter.sdk=$FLUTTER_ROOT_PATH" >> local.properties
-          fi
-          echo "--- local.properties ---"
-          cat local.properties
-          
-          echo "--- Validating Gradle Wrapper ---"
-          if [ ! -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-            echo "❌ ERROR: gradle-wrapper.properties not found!"
+          if [ -d "flutter/android" ]; then
+            cd flutter/android
+            echo "sdk.dir=$ANDROID_HOME" > local.properties
+            echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
+            echo "--- local.properties content ---"
+            cat local.properties
+            
+            echo "--- Validating Gradle Wrapper ---"
+            if [ -f "gradlew" ]; then
+              chmod +x gradlew
+              ./gradlew help --no-daemon || echo "Gradle warmup failed, continuing..."
+            else
+              echo "⚠️ gradlew not found in flutter/android"
+            fi
+          else
+            echo "❌ ERROR: flutter/android directory not found"
             exit 1
           fi
-          
-          chmod +x gradlew
-          # Gradle warmup opcional, ignoramos erro se falhar apenas no warmup
-          ./gradlew help --no-daemon --stacktrace || echo "Gradle warmup failed, attempting build anyway..."
 
 
       - name: Build Flutter App
         env:
-          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000"
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g"
           ORG_GRADLE_PROJECT_VERSION_CODE: ${{ env.VERSION_CODE }}
           ORG_GRADLE_PROJECT_VERSION_NAME: ${{ env.VERSION_NAME }}
         run: |
           cd flutter
           
-          # Re-verify local.properties
-          if [ ! -f "android/local.properties" ]; then
-            echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-            # Try to get path again safely
-            SAFE_FLUTTER_PATH=$(flutter doctor -v | grep "Flutter SDK at" | awk '{print $4}' || echo "")
-            if [ -n "$SAFE_FLUTTER_PATH" ]; then
-              echo "flutter.sdk=$SAFE_FLUTTER_PATH" >> android/local.properties
-            fi
-          fi
-
-
-          
           # Build APK
-          flutter build apk --release --verbose \
+          flutter build apk --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub
             
           # Build App Bundle
-          flutter build appbundle --release --verbose \
+          flutter build appbundle --release \
             --build-number=${{ env.VERSION_CODE }} \
             --build-name=${{ env.VERSION_NAME }} \
             --no-pub
