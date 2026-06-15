@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Rota Certa</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1c22;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 { margin-bottom: 10px; font-size: 24px; }
+        p { color: #a0a0a0; margin-bottom: 30px; }
+        button {
+            background-color: #FF5722;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="icon">🚚</div>
+    <h1>Você está offline</h1>
+    <p>Verifique sua conexão com a internet para continuar usando o Rota Certa.</p>
+    <button onclick="window.location.reload()">Tentar novamente</button>
+</body>
+</html>

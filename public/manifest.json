@@ -1,0 +1,47 @@
+{
+  "name": "Rotas",
+  "short_name": "Rotas",
+  "description": "Gestão inteligente e otimizada de entregas e rotas",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1c22",
+  "theme_color": "#FF5722",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Ver resumo das entregas",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Novo Roteiro",
+      "short_name": "Novo",
+      "description": "Criar um novo roteiro",
+      "url": "/dashboard?action=new",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/splash-1170x2532.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Rota Certa - Tela inicial"
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,1 @@
+ALTER TABLE public.routes ADD COLUMN freight_value NUMERIC(10, 2) DEFAULT 0;

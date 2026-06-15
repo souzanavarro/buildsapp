@@ -1,0 +1,1 @@
+ALTER FUNCTION public.get_dashboard_stats(date, date) SET search_path = public;

@@ -1,0 +1,38 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brandGradient" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF5722"/>
+      <stop offset="1" stop-color="#FF9800"/>
+    </linearGradient>
+    <filter id="truckShadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  
+  <!-- Background with radius -->
+  <rect width="512" height="512" rx="120" fill="url(#brandGradient)"/>
+  
+  <!-- Truck Icon Styled -->
+  <g filter="url(#truckShadow)">
+    <!-- Truck Body (Main cargo area) -->
+    <rect x="120" y="180" width="220" height="150" rx="10" fill="white" fill-opacity="0.9"/>
+    
+    <!-- Truck Cabin -->
+    <path d="M340 230H390C410 230 420 240 420 260V330H340V230Z" fill="white"/>
+    
+    <!-- Cabin Window -->
+    <path d="M355 245H385C395 245 400 250 400 260V285H355V245Z" fill="#FF5722" fill-opacity="0.2"/>
+    
+    <!-- Wheels -->
+    <circle cx="170" cy="350" r="35" fill="#1A1C22"/>
+    <circle cx="170" cy="350" r="15" fill="#444"/>
+    
+    <circle cx="370" cy="350" r="35" fill="#1A1C22"/>
+    <circle cx="370" cy="350" r="15" fill="#444"/>
+    
+    <!-- Speed Lines (Motion effect) -->
+    <rect x="70" y="210" width="30" height="8" rx="4" fill="white" fill-opacity="0.6"/>
+    <rect x="50" y="250" width="50" height="8" rx="4" fill="white" fill-opacity="0.4"/>
+    <rect x="70" y="290" width="30" height="8" rx="4" fill="white" fill-opacity="0.6"/>
+  </g>
+</svg>

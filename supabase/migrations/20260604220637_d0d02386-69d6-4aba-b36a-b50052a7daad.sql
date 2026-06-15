@@ -1,0 +1,1 @@
+CREATE POLICY "Builds Android são públicos" ON storage.objects FOR SELECT USING (bucket_id = 'android-builds');

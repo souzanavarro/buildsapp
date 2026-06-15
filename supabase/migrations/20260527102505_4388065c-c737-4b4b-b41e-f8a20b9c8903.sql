@@ -1,0 +1,1 @@
+CREATE POLICY "Admins view all routes" ON public.routes FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));

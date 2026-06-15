@@ -19,12 +19,12 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Set Swap Space
-        uses: pierotofy/set-swap-space@49819abfb4d544d8f2873151246a06634537f302 # v1.0
+        uses: pierotofy/set-swap-space@v1.0
         with:
           swap-size-gb: 10
 
       - name: Checkout Source
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -53,27 +53,27 @@ jobs:
           echo "🔢 Build Version: $VERSION_NAME ($VERSION_CODE)"
 
       - name: Setup Node.js
-        uses: actions/setup-node@60edb5dd545a775178f52524742353778a211965 # v4.0.1
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
 
       - name: Setup Java
-        uses: actions/setup-java@387ac29b9965a3962e650c1120dca83057e3ad3a # v4.0.0
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           cache: 'gradle'
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@44ac965b96f18d999802d4b807e3256d5a3f9fa1 # v2.12.0
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
           channel: 'stable'
           cache: true
 
       - name: Cache Gradle Dependencies
-        uses: actions/cache@13f13d73163bd5125841d832db47ce1eeef627ed # v4.0.0
+        uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
@@ -83,12 +83,12 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Cache Pub Dependencies
-        uses: actions/cache@13f13d73163bd5125841d832db47ce1eeef627ed # v4.0.0
+        uses: actions/cache@v4
         with:
           path: |
             ~/.pub-cache
             flutter/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('flutter/pubspec.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -106,15 +106,17 @@ jobs:
           flutter --version || true
           java -version || true
           
-          # Encontrar o path do Flutter de forma segura
+          # Find Flutter SDK path safely
           FLUTTER_SDK_PATH=$(dirname $(dirname $(which flutter)))
           echo "Flutter SDK Path: $FLUTTER_SDK_PATH"
           
-          # Garantir que local.properties existe em flutter/android
+          # Ensure local.properties exists in flutter/android
           if [ -d "flutter/android" ]; then
             cd flutter/android
             echo "sdk.dir=$ANDROID_HOME" > local.properties
             echo "flutter.sdk=$FLUTTER_SDK_PATH" >> local.properties
+            echo "VERSION_CODE=1" >> local.properties
+            echo "VERSION_NAME=1" >> local.properties
             echo "--- local.properties content ---"
             cat local.properties
             
@@ -129,7 +131,6 @@ jobs:
             echo "❌ ERROR: flutter/android directory not found"
             exit 1
           fi
-
 
       - name: Build Flutter App
         env:
@@ -154,19 +155,16 @@ jobs:
             --no-pub \
             --dart-define=VERSION_CODE=1 --dart-define=VERSION_NAME=1 > build_aab_log.txt 2>&1 || (echo "❌ AAB Build Failed. Last 1000 lines of log:" && tail -n 1000 build_aab_log.txt && exit 1)
 
-
       - name: Verify Build Artifacts
         run: |
           echo "Verificando existência dos artefatos de build..."
-          # Com o build dir padrão do Flutter
           APK_PATH="flutter/build/app/outputs/flutter-apk/app-release.apk"
           AAB_PATH="flutter/build/app/outputs/bundle/release/app-release.aab"
           
-          # Listando conteúdo para depuração
+          # List content for debugging
           echo "Conteúdo da pasta de outputs (recursivo):"
           find flutter/build -name "*.apk" -o -name "*.aab" || echo "Nenhum binário encontrado"
           
-          # Se não encontrou no path padrão, tenta achar onde o Flutter colocou
           if [ ! -f "$APK_PATH" ]; then
             FOUND_APK=$(find flutter/build -name "app-release.apk" | head -n 1)
             if [ -n "$FOUND_APK" ]; then
@@ -183,7 +181,6 @@ jobs:
             fi
           fi
           
-          # Exportando caminhos reais para os próximos passos
           echo "REAL_APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "REAL_AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
           
@@ -203,7 +200,7 @@ jobs:
           fi
 
       - name: Sign APK
-        uses: r0adkll/sign-android-release@349ebca963c6ca66675dfad00244799014605963 # v1.0.4
+        uses: r0adkll/sign-android-release@v1
         id: sign_apk
         with:
           releaseDirectory: flutter/build/app/outputs/flutter-apk
@@ -211,9 +208,9 @@ jobs:
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
- 
+  
       - name: Sign AAB
-        uses: r0adkll/sign-android-release@349ebca963c6ca66675dfad00244799014605963 # v1.0.4
+        uses: r0adkll/sign-android-release@v1
         id: sign_aab
         with:
           releaseDirectory: flutter/build/app/outputs/bundle/release
@@ -221,16 +218,14 @@ jobs:
           alias: ${{ secrets.ANDROID_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
- 
+  
       - name: Prepare Final Files
         if: always()
         run: |
           mkdir -p aplicativo
-          # Copy logs if they exist
           [ -f flutter/build_apk_log.txt ] && cp flutter/build_apk_log.txt aplicativo/
           [ -f flutter/build_aab_log.txt ] && cp flutter/build_aab_log.txt aplicativo/
           
-          # Copy signed or unsigned artifacts if they exist
           if [ -f "${{ steps.sign_apk.outputs.signedReleaseFile }}" ]; then
             cp "${{ steps.sign_apk.outputs.signedReleaseFile }}" aplicativo/BuildsApp-Signed.apk
           elif [ -f "${{ env.REAL_APK_PATH }}" ]; then
@@ -245,20 +240,20 @@ jobs:
 
       - name: Create Release
         if: success()
-        uses: softprops/action-gh-release@9d7c94cfd0a1d3ed8bc3b1db136618408759392e # v2.0.4
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION_NAME }}
-          name: Release ${{ env.VERSION_NAME }}
+          tag_name: ${{ env.VERSION_NAME }}-${{ github.run_number }}
+          name: Release ${{ env.VERSION_NAME }} (Build ${{ github.run_number }})
           files: |
             aplicativo/BuildsApp-Signed.apk
             aplicativo/BuildsApp-Signed.aab
-          body: "Nova versão ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }}) gerada automaticamente."
+          body: "Nova versão ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }}) gerada automaticamente. Build #${{ github.run_number }}."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Build Artifacts
         if: always()
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        uses: actions/upload-artifact@v4
         with:
           name: build-assets-${{ env.VERSION_NAME }}-${{ github.run_number }}
           path: |
